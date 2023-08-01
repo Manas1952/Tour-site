@@ -12,11 +12,11 @@ exports.aliasTopTours = (req, res, next) => {
 exports.getAllTours = async (req, res) => {
   try {
     const features = new APIFeatures(Tour.find(), req.query)
-    .filter()
-    .sort()
-    .limitFields()
-    .paginate()
-  
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate()
+
     const tours = await features.query
 
     res.status(200).json({
@@ -110,7 +110,7 @@ exports.getTourStats = async (req, res) => {
       {
         $group: {
           _id: { $toUpper: '$difficulty' },
-          numTours: { $sum: 1 },
+          numTours: { $sum: 1 }, // would add 1 for each document so that we can get count
           numRatings: { $sum: '$ratingsQuantity' },
           avgRatings: { $avg: '$ratingsAverage' },
           avgPrice: { $avg: '$price' },
@@ -119,7 +119,7 @@ exports.getTourStats = async (req, res) => {
         }
       },
       {
-        $sort: { avgPrice: 1 }
+        $sort: { avgPrice: 1 } // 1 stands for ascending and -1 for descending
       }
     ])
 
@@ -137,8 +137,51 @@ exports.getTourStats = async (req, res) => {
 
 exports.getMonthlyPlan = async (req, res) => {
   try {
-    
+    const year = req.params.year * 1
+
+    const plan = await Tour.aggregate([
+      {
+        $unwind: '$startDates' // Deconstructs an array field from the input documents to output a document for each element
+      },
+      {
+        $match: {
+          startDates: {
+            $gte: new Date(`${year}-01-01`),
+            $lte: new Date(`${year}-01-01`)
+          }
+        }
+      },
+      {
+        $group: {
+          _id: { $month: '$startDates' }, // group by month of field 'startDates'; Returns the month of a date as a number between 1 and 12
+          numTourStarts: { $sum: 1 },
+          tours: { $push: '$name' } // making array of 'name' of tours
+        }
+      },
+      {
+        $addFields: { month: '$_id' } // add a new field 'month' with value same as "_id'
+      },
+      {
+        $project: {
+          _id: 0 // 0 -> don't show this field; 1 -> show this field (as we are showing month )
+        }
+      },
+      {
+        $sort: { numTourStarts }
+      },
+      {
+        $limit: 12
+      }
+    ])
+
+    res.status(200).json({
+      status: 'SUCCESS',
+      data: { plan }
+    });
   } catch (error) {
-    
+    res.status(404).json({
+      status: 'FAIL',
+      message: error
+    });
   }
 }
