@@ -2,9 +2,10 @@ const Tour = require('../model/tourModel')
 const APIFeatures = require('../utils/apiFeatures')
 
 exports.aliasTopTours = (req, res, next) => {
+
   req.query.limit = 5,
-    req.query.sort = '-ratingsAverage,price',
-    req.query.fields = 'name,price,ratingsAverage,summary,difficulty'
+  req.query.sort = '-ratingsAverage,price',
+  req.query.fields = 'name,price,ratingsAverage,summary,difficulty'
 
   next()
 }
@@ -50,7 +51,7 @@ exports.getTour = async (req, res) => {
 
 exports.createTour = async (req, res) => {
   try {
-    const tour = Tour.create(req.body);
+    const tour = await Tour.create(req.body);
 
     res.status(201).json({
       status: 'SUCCESS',

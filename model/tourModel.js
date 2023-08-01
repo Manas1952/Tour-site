@@ -46,9 +46,10 @@ const tourSchema = new mongoose.Schema(
       type: Number,
       validate: {
         validator: function (value) {
+          // 'this' only points to current doc on NEW document creation, not on updates
           return value < this.price
         },
-        message: 'Discount price ({VALUE}) should be below regular price'
+        message: 'Discount price ({VALUE}) should be below regular price' // '({VALUE})' is functionality by mongoose (value of priceDiscount) 
       }
     },
     summary: {
@@ -77,6 +78,7 @@ const tourSchema = new mongoose.Schema(
     }
   },
   {
+    // whenever output is gotten as JSON or Object, add virtual properties to it
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
   }
@@ -87,17 +89,26 @@ tourSchema.virtual('durationWeeks').get(function() {
 })
 
 tourSchema.pre('save', function(next) {
-  this.slug = slugify(this.name, { lower: true })
+  this.slug = slugify(this.name, { lower: true }) // slugify the name ('tour 1' -> 'tour-1')
   next()
 })
 
+// this is middleware for query, not for document; 'this' references to current query, not document
 tourSchema.pre(/^find/, function(next) {
   this.find({ secretTour: { $ne: true } })
   this.start = Date.now()
   next()
 })
+
 tourSchema.post(/^find/, function(docs, next) {
-  console.log(`Query took ${Date.now - this.start} milliseconds!`);
+  console.log(`Query took ${Date.now() - this.start} milliseconds!`);
+  next()
+})
+
+tourSchema.post('aggregate', function(docs, next) {
+  this.pipeline().unshift({
+    $match: { secretTour: { $ne: true } }  // 'this.pipeline()' returns array of stages, so we add one more stage at starting of this stages[] by 'unshift()'.
+  })
   next()
 })
 
